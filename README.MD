@@ -318,9 +318,16 @@ resource "aws_key_pair" "key_aws" {
 }
 ```
 
-## EC2 With Security Group & Key Pair
+### EC2 With Security Group & Key Pair
 
-This will allow users to connect to ec2 instance via SSH using private key.
+> Create EC2 with SG allowing SSH, which will allow users to connect to EC2 instance.
+
+#### Resources Used 
+- aws_key_pair
+- aws_security_group
+- aws_vpc_security_group_ingress_rule
+- aws_vpc_security_group_egress_rule
+- aws_instance
 
 ```
 resource "aws_key_pair" "key_aws" {
@@ -328,26 +335,16 @@ resource "aws_key_pair" "key_aws" {
   public_key = file("/home/totoro/.ssh/aws.pub")
 }
 
-# Security group
-resource "aws_security_group" "sg_allow_tls_ssh" {
-  name        = "allow_tls_ssh"
+resource "aws_security_group" "sg_allow_ssh" {
+  name = "sg_allow_ssh"
 
   tags = {
-    Name = "allow_tls_ssh"
+    Name = "sg_allow_ssh"
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "sg_ingress_allow_tls" {
-  security_group_id = aws_security_group.sg_allow_tls_ssh.id
-
-  cidr_ipv4 = "0.0.0.0/0"
-  from_port = 443
-  ip_protocol = "tcp"
-  to_port = 443
-}
-
 resource "aws_vpc_security_group_ingress_rule" "sg_ingress_allow_ssh" {
-  security_group_id = aws_security_group.sg_allow_tls_ssh.id
+  security_group_id = aws_security_group.sg_allow_ssh.id
 
   cidr_ipv4 = "0.0.0.0/0"
   from_port = 22
@@ -355,12 +352,22 @@ resource "aws_vpc_security_group_ingress_rule" "sg_ingress_allow_ssh" {
   to_port = 22
 }
 
-resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_ephemeral" {
-  security_group_id = aws_security_group.sg_allow_tls_ssh.id
+resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_ephemeral_tcp" {
+  security_group_id = aws_security_group.sg_allow_ssh.id
 
   cidr_ipv4 = "0.0.0.0/0"
   from_port = 1024
   ip_protocol = "tcp"
+  to_port = 65535
+
+}
+
+resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_ephemeral_udp" {
+  security_group_id = aws_security_group.sg_allow_ssh.id
+
+  cidr_ipv4 = "0.0.0.0/0"
+  from_port = 1024
+  ip_protocol = "udp"
   to_port = 65535
 
 }
@@ -389,6 +396,169 @@ resource "aws_instance" "ec2_ubuntu" {
   ami = data.aws_ami.latest_ubuntu.id
   instance_type = "t2.micro"
   key_name = aws_key_pair.key_aws.key_name
-  vpc_security_group_ids = [aws_security_group.sg_allow_tls_ssh.id]
+  vpc_security_group_ids = [aws_security_group.sg_allow_ssh.id]
+}
+```
+
+### EC2 With VPC, Security Group & Key Pair. Implemented for-loop to allow multiple ports and protocols for SG
+
+#### Resources Used 
+- aws_key_pair
+- aws_vpc
+- aws_internet_gateway
+- aws_subnet
+- aws_route_table
+- aws_route_table_association
+- aws_security_group
+- aws_vpc_security_group_ingress_rule
+- aws_vpc_security_group_egress_rule
+- aws_instance
+
+```
+resource "aws_key_pair" "key_aws" {
+  key_name   = "aws"
+  public_key = file("/home/totoro/.ssh/aws.pub")
+}
+
+resource "aws_vpc" "main_vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = "main_vpc"
+  }
+}
+
+resource "aws_subnet" "main_vpc_subnet_pub" {
+  vpc_id     = aws_vpc.main_vpc.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "main_vpc_subnet_pub"
+  }
+}
+
+resource "aws_subnet" "main_vpc_subnet_pvt" {
+  vpc_id     = aws_vpc.main_vpc.id
+  cidr_block = "10.0.2.0/24"
+
+  tags = {
+    Name = "main_vpc_subnet_pvt"
+  }
+}
+
+resource "aws_internet_gateway" "main_vpc_gw" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  tags = {
+    Name = "main_vpc_gw"
+  }
+}
+
+resource "aws_route_table" "main_vpc_subnet_pub_rt" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main_vpc_gw.id
+  }
+
+  tags = {
+    Name = "main_vpc_subnet_pub_rt"
+  }
+}
+
+resource "aws_route_table" "main_vpc_subnet_pvt_rt" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  route {
+    cidr_block = "10.0.0.0/16"
+    gateway_id = "local"
+  }
+
+  tags = {
+    Name = "main_vpc_subnet_pvt_rt"
+  }
+}
+
+resource "aws_route_table_association" "main_vpc_subnet_pvt_rt_association" {
+  subnet_id = aws_subnet.main_vpc_subnet_pvt.id
+  route_table_id = aws_route_table.main_vpc_subnet_pvt_rt.id
+}
+
+resource "aws_route_table_association" "main_vpc_subnet_pub_rt_association" {
+  subnet_id = aws_subnet.main_vpc_subnet_pub.id
+  route_table_id = aws_route_table.main_vpc_subnet_pub_rt.id
+}
+
+resource "aws_security_group" "sg_allow_ssh_http_tls" {
+  name = "allow_ssh_https_tls"
+  vpc_id = aws_vpc.main_vpc.id
+
+  tags = {
+    Name = "allow_ssh_https_tls"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "sg_ingress_allow_ssh_http_tls" {
+  security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
+
+  for_each = toset(["22", "80", "443"])
+  from_port = each.value
+  to_port = each.value
+
+  cidr_ipv4 = "0.0.0.0/0"
+  ip_protocol = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_ephemeral" {
+  security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
+
+  for_each = toset(["tcp","udp"])
+  ip_protocol = each.value
+
+  cidr_ipv4 = "0.0.0.0/0"
+  from_port = 1024
+  to_port = 65535
+}
+
+resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_http_tls" {
+  security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
+
+  for_each = toset(["80","443"])
+  from_port = each.value
+  to_port = each.value
+
+  cidr_ipv4 = "0.0.0.0/0"
+  ip_protocol = "tcp"
+}
+
+data "aws_ami" "latest_ubuntu" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-*/ubuntu-*-24.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+}
+
+resource "aws_instance" "ec2_ubuntu" {
+  ami = data.aws_ami.latest_ubuntu.id
+  associate_public_ip_address = "true"
+  instance_type = "t2.micro"
+  key_name = aws_key_pair.key_aws.key_name
+  subnet_id = aws_subnet.main_vpc_subnet_pub.id
+  vpc_security_group_ids = [aws_security_group.sg_allow_ssh_http_tls.id]
+  user_data = file("${path.module}/user_data.sh")
 }
 ```
