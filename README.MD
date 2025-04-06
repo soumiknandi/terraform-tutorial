@@ -7,6 +7,21 @@ HashiCorp Terraform is an infrastructure as code tool that lets you define both 
 
 ## Terraform Components
 
+### Terraform
+
+The terraform block allows you to configure Terraform behavior, including the Terraform version, backend, integration with HCP Terraform, and required providers.
+
+```
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.92.0"
+    }
+  }
+}
+```
+
 ### Providers
 
 Defines which cloud or service Terraform interacts with.
@@ -562,3 +577,18 @@ resource "aws_instance" "ec2_ubuntu" {
   user_data = file("${path.module}/user_data.sh")
 }
 ```
+
+## Advance Topics
+
+### Terraform State File In S3
+
+```
+terraform {
+  backend "s3" {
+    bucket = "mybucket"
+    key    = "path/to/my/key"
+    region = "us-east-1"
+  }
+}
+```
+The S3 backend stores state data in an S3 object at the path set by the key parameter in the S3 bucket indicated by the bucket parameter. Using the example shown above, the state would be stored at the path path/to/my/key in the bucket mybucket.
