@@ -591,4 +591,25 @@ terraform {
   }
 }
 ```
-The S3 backend stores state data in an S3 object at the path set by the key parameter in the S3 bucket indicated by the bucket parameter. Using the example shown above, the state would be stored at the path path/to/my/key in the bucket mybucket.
+> The S3 backend stores state data in an S3 object at the path set by the key parameter in the S3 bucket indicated by the bucket parameter. Using the example shown above, the state would be stored at the path path/to/my/key in the bucket mybucket.
+
+### Import Existing Resources
+
+```
+resource "aws_vpc" "main_vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = "main_vpc"
+  }
+}
+```
+Run terraform import to attach an existing instance to the resource configuration:
+
+```bash
+$ terraform import resource.name instance-id
+```
+Example
+```bash
+$ terraform import aws_vpc.main_vpc vpc-0a50dc6b331c407ee
+```
