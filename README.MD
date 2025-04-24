@@ -118,10 +118,14 @@ The terraform init command prints out which version of the provider was installe
 Terraform also creates a lock file named `.terraform.lock.hcl` which specifies the exact provider versions used, so that you can control when you want to update the providers used for your project.
 
 ### Fmt
-TODO
+
+The terraform fmt command formats Terraform configuration file contents so that it matches the canonical format and style.
 
 ### Validate
-TODO
+
+The terraform validate command validates the configuration files in a directory. Validate runs checks that verify whether a configuration is syntactically valid and internally consistent, regardless of any provided variables or existing state. 
+
+`It does not validate remote services, such as remote state or provider APIs.`
 
 ### Plan
 
@@ -140,9 +144,12 @@ When you run `terraform apply` without passing a saved plan file, Terraform auto
 [More details](https://developer.hashicorp.com/terraform/cli/commands/apply)
 
 ### Destroy
-TODO
+
+The terraform destroy command deprovisions all objects managed by a Terraform configuration.
+
 ### Output
-TODO
+
+The terraform output command extracts the value of an output variable from the state file.
 
 ## Credentials Setup
 
@@ -428,6 +435,7 @@ resource "aws_instance" "ec2_ubuntu" {
 - aws_vpc_security_group_ingress_rule
 - aws_vpc_security_group_egress_rule
 - aws_instance
+- output
 
 ```
 resource "aws_key_pair" "key_aws" {
@@ -576,6 +584,10 @@ resource "aws_instance" "ec2_ubuntu" {
   vpc_security_group_ids = [aws_security_group.sg_allow_ssh_http_tls.id]
   user_data = file("${path.module}/user_data.sh")
 }
+
+output "ec2_ubuntu_ip" {
+  value = aws_instance.ec2_ubuntu.public_ip
+}
 ```
 
 ## Advance Topics
@@ -612,4 +624,19 @@ $ terraform import resource.name instance-id
 Example
 ```bash
 $ terraform import aws_vpc.main_vpc vpc-0a50dc6b331c407ee
+```
+
+### Terraform Destroy Specific Resources
+
+```bash
+$ terraform destroy -target
+```
+OR
+```bash
+$ terraform apply -destroy
+```
+
+Example
+```bash
+terraform destroy -target aws_instance.ec2_ubuntu
 ```

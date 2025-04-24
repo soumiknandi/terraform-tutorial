@@ -1,10 +1,16 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "5.92.0"
     }
   }
+  # backend "s3" {
+  #   bucket = "terraform-mik"
+  #   key    = "terraform.tfstate"
+  #   region = "ap-south-1"
+  #   profile = "profile1"
+  # }
 }
 
 # Set up provider config
@@ -108,18 +114,18 @@ resource "aws_route_table" "main_vpc_subnet_pvt_rt" {
 }
 
 resource "aws_route_table_association" "main_vpc_subnet_pvt_rt_association" {
-  subnet_id = aws_subnet.main_vpc_subnet_pvt.id
+  subnet_id      = aws_subnet.main_vpc_subnet_pvt.id
   route_table_id = aws_route_table.main_vpc_subnet_pvt_rt.id
 }
 
 resource "aws_route_table_association" "main_vpc_subnet_pub_rt_association" {
-  subnet_id = aws_subnet.main_vpc_subnet_pub.id
+  subnet_id      = aws_subnet.main_vpc_subnet_pub.id
   route_table_id = aws_route_table.main_vpc_subnet_pub_rt.id
 }
 
 # Security group
 resource "aws_security_group" "sg_allow_ssh_http_tls" {
-  name = "allow_ssh_https_tls"
+  name   = "allow_ssh_https_tls"
   vpc_id = aws_vpc.main_vpc.id
 
   tags = {
@@ -130,33 +136,33 @@ resource "aws_security_group" "sg_allow_ssh_http_tls" {
 resource "aws_vpc_security_group_ingress_rule" "sg_ingress_allow_ssh_http_tls" {
   security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
 
-  for_each = toset(["22", "80", "443"])
+  for_each  = toset(["22", "80", "443"])
   from_port = each.value
-  to_port = each.value
+  to_port   = each.value
 
-  cidr_ipv4 = "0.0.0.0/0"
+  cidr_ipv4   = "0.0.0.0/0"
   ip_protocol = "tcp"
 }
 
 resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_ephemeral" {
   security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
 
-  for_each = toset(["tcp","udp"])
+  for_each    = toset(["tcp", "udp"])
   ip_protocol = each.value
 
   cidr_ipv4 = "0.0.0.0/0"
   from_port = 1024
-  to_port = 65535
+  to_port   = 65535
 }
 
 resource "aws_vpc_security_group_egress_rule" "sq_egress_allow_http_tls" {
   security_group_id = aws_security_group.sg_allow_ssh_http_tls.id
 
-  for_each = toset(["80","443"])
+  for_each  = toset(["80", "443"])
   from_port = each.value
-  to_port = each.value
+  to_port   = each.value
 
-  cidr_ipv4 = "0.0.0.0/0"
+  cidr_ipv4   = "0.0.0.0/0"
   ip_protocol = "tcp"
 }
 
@@ -188,4 +194,8 @@ data "aws_ami" "latest_ubuntu" {
 #   subnet_id = aws_subnet.main_vpc_subnet_pub.id
 #   vpc_security_group_ids = [aws_security_group.sg_allow_ssh_http_tls.id]
 #   user_data = file("${path.module}/user_data.sh")
+# }
+
+# output "ec2_ubuntu_ip" {
+#   value = aws_instance.ec2_ubuntu.public_ip
 # }
